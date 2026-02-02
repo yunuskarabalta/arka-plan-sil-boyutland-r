@@ -1,6 +1,6 @@
 import streamlit as st
 from rembg import remove
-from PIL import Image
+from PIL import Image, ImageDraw
 import io
 import os
 
@@ -19,6 +19,16 @@ target_height = st.sidebar.number_input("Yükseklik (px)", min_value=100, max_va
 
 st.sidebar.divider()
 
+# Logo Gizleme Ayarları (YENİ)
+st.sidebar.subheader("🗑️ Logo/Yazı Gizle (Maskeleme)")
+st.sidebar.info("Kenarlardaki istenmeyen logoları silmek için bu ayarları artırın.")
+mask_top = st.sidebar.slider("Üstten Gizle (%)", 0, 50, 0)
+mask_bottom = st.sidebar.slider("Alttan Gizle (%)", 0, 50, 0)
+mask_left = st.sidebar.slider("Soldan Gizle (%)", 0, 50, 0)
+mask_right = st.sidebar.slider("Sağdan Gizle (%)", 0, 50, 0)
+
+st.sidebar.divider()
+
 # Gelişmiş Ayarlar
 st.sidebar.subheader("🧪 Gelişmiş Temizlik")
 use_alpha_matting = st.sidebar.checkbox("Detaylı Temizlik (Alpha Matting)", value=False, help="Kenarları daha hassas temizler ama işlem süresi uzayabilir.")
@@ -26,13 +36,39 @@ alpha_matting_erode = 10
 if use_alpha_matting:
     alpha_matting_erode = st.sidebar.slider("Kenar Aşındırma (Erode Size)", 0, 40, 10, help="Kenarlardan ne kadar içeri gireceğini belirler. Artırırsanız kenardaki artıklar daha çok silinir.")
 
+
 st.write(f"Resminizi yükleyin, arka planı silinsin ve **{target_width}x{target_height}** beyaz şablona oturtulsun.")
 
 # Önbellekleme (Cache) ile her değişiklikte tekrar işlemesini engelliyoruz
 @st.cache_data
-def process_image(image_bytes, width, height, use_alpha, erode_size):
+def process_image(image_bytes, width, height, use_alpha, erode_size, m_top, m_bottom, m_left, m_right):
     # Byte verisini görsele çevir
     image = Image.open(io.BytesIO(image_bytes))
+    
+    # --- MASKELEME İŞLEMİ (Logoları beyaza boya) ---
+    if m_top > 0 or m_bottom > 0 or m_left > 0 or m_right > 0:
+        draw = ImageDraw.Draw(image)
+        w, h = image.size
+        
+        # Üst
+        if m_top > 0:
+            h_crop = int(h * (m_top / 100))
+            draw.rectangle([(0, 0), (w, h_crop)], fill="white")
+        
+        # Alt
+        if m_bottom > 0:
+            h_crop = int(h * (m_bottom / 100))
+            draw.rectangle([(0, h - h_crop), (w, h)], fill="white")
+            
+        # Sol
+        if m_left > 0:
+            w_crop = int(w * (m_left / 100))
+            draw.rectangle([(0, 0), (w_crop, h)], fill="white")
+            
+        # Sağ
+        if m_right > 0:
+            w_crop = int(w * (m_right / 100))
+            draw.rectangle([(w - w_crop, 0), (w, h)], fill="white")
     
     # 1. Arka planı kaldır
     if use_alpha:
@@ -63,8 +99,6 @@ def process_image(image_bytes, width, height, use_alpha, erode_size):
     
     return canvas
 
-
-
 # Dosya Yükleme Alanı
 uploaded_files = st.file_uploader("Resimleri Sürükleyip Bırakın", type=['png', 'jpg', 'jpeg', 'webp'], accept_multiple_files=True)
 
@@ -83,7 +117,7 @@ if uploaded_files:
             
             # İşle
             with st.spinner(f'{uploaded_file.name} işleniyor...'):
-                final_image = process_image(img_bytes, target_width, target_height, use_alpha_matting, alpha_matting_erode)
+                final_image = process_image(img_bytes, target_width, target_height, use_alpha_matting, alpha_matting_erode, mask_top, mask_bottom, mask_left, mask_right)
             
             # Sonuçları listeye ekle (Daha sonra sidebar için kullanacağız)
             processed_results.append({
