@@ -1,3 +1,5 @@
 rembg[cpu]
 Pillow
 streamlit
+opencv-python-headless
+numpy

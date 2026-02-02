@@ -1,8 +1,10 @@
 import streamlit as st
 from rembg import remove
-from PIL import Image, ImageDraw
+from PIL import Image
 import io
 import os
+import cv2
+import numpy as np
 
 # Sayfa Ayarları
 st.set_page_config(page_title="Pro Arka Plan Silici", layout="wide")
@@ -19,82 +21,78 @@ target_height = st.sidebar.number_input("Yükseklik (px)", min_value=100, max_va
 
 st.sidebar.divider()
 
-# Logo Gizleme Ayarları (YENİ)
-st.sidebar.subheader("🗑️ Logo/Yazı Gizle (Maskeleme)")
-st.sidebar.info("Kenarlardaki istenmeyen logoları silmek için bu ayarları artırın.")
-mask_top = st.sidebar.slider("Üstten Gizle (%)", 0, 50, 0)
-mask_bottom = st.sidebar.slider("Alttan Gizle (%)", 0, 50, 0)
-mask_left = st.sidebar.slider("Soldan Gizle (%)", 0, 50, 0)
-mask_right = st.sidebar.slider("Sağdan Gizle (%)", 0, 50, 0)
+# Gelişmiş Ayarlar
+st.sidebar.subheader("🧠 Akıllı Temizlik")
+use_smart_clean = st.sidebar.checkbox("Otomatik Parçacık Temizleyici", value=True, help="Ana nesne dışındaki küçük logoları ve lekeleri otomatik siler.")
+smart_clean_threshold = 0.05 # %5'ten küçük parçaları sil
 
 st.sidebar.divider()
 
-# Gelişmiş Ayarlar
-st.sidebar.subheader("🧪 Gelişmiş Temizlik")
-use_alpha_matting = st.sidebar.checkbox("Detaylı Temizlik (Alpha Matting)", value=False, help="Kenarları daha hassas temizler ama işlem süresi uzayabilir.")
+st.sidebar.subheader("🧪 Detay Ayarları")
+use_alpha_matting = st.sidebar.checkbox("Hassas Kenar (Alpha Matting)", value=False, help="Kenarları daha yumuşak siler.")
 alpha_matting_erode = 10
 if use_alpha_matting:
-    alpha_matting_erode = st.sidebar.slider("Kenar Aşındırma (Erode Size)", 0, 40, 10, help="Kenarlardan ne kadar içeri gireceğini belirler. Artırırsanız kenardaki artıklar daha çok silinir.")
-
+    alpha_matting_erode = st.sidebar.slider("Kenar Aşındırma", 0, 40, 10)
 
 st.write(f"Resminizi yükleyin, arka planı silinsin ve **{target_width}x{target_height}** beyaz şablona oturtulsun.")
 
-# Önbellekleme (Cache) ile her değişiklikte tekrar işlemesini engelliyoruz
+# Önbellekleme (Cache) - Parametre değiştikçe yeniden çalışır
 @st.cache_data
-def process_image(image_bytes, width, height, use_alpha, erode_size, m_top, m_bottom, m_left, m_right):
-    # Byte verisini görsele çevir
+def process_image(image_bytes, width, height, _use_smart, _smart_thresh, _use_alpha, _erode_size):
+    # Byte -> PIL Image
     image = Image.open(io.BytesIO(image_bytes))
     
-    # --- MASKELEME İŞLEMİ (Logoları beyaza boya) ---
-    if m_top > 0 or m_bottom > 0 or m_left > 0 or m_right > 0:
-        draw = ImageDraw.Draw(image)
-        w, h = image.size
-        
-        # Üst
-        if m_top > 0:
-            h_crop = int(h * (m_top / 100))
-            draw.rectangle([(0, 0), (w, h_crop)], fill="white")
-        
-        # Alt
-        if m_bottom > 0:
-            h_crop = int(h * (m_bottom / 100))
-            draw.rectangle([(0, h - h_crop), (w, h)], fill="white")
-            
-        # Sol
-        if m_left > 0:
-            w_crop = int(w * (m_left / 100))
-            draw.rectangle([(0, 0), (w_crop, h)], fill="white")
-            
-        # Sağ
-        if m_right > 0:
-            w_crop = int(w * (m_right / 100))
-            draw.rectangle([(w - w_crop, 0), (w, h)], fill="white")
-    
-    # 1. Arka planı kaldır
-    if use_alpha:
-        output_image = remove(image, alpha_matting=True, alpha_matting_erode_size=erode_size)
+    # 1. Arka planı kaldır (rembg)
+    if _use_alpha:
+        output_image = remove(image, alpha_matting=True, alpha_matting_erode_size=_erode_size)
     else:
         output_image = remove(image)
-    
-    # 2. Yeni beyaz bir tuval oluştur (Kullanıcının seçtiği boyutlarda)
+        
+    # 2. Akıllı Temizlik (OpenCV ile küçük parçaları silme)
+    if _use_smart:
+        # PIL -> Numpy (RGBA)
+        img_np = np.array(output_image)
+        
+        # Sadece Alpha kanalını al (Şeffaflık maskesi)
+        alpha_channel = img_np[:, :, 3]
+        
+        # Konturları bul (Dış hatlar)
+        contours, _ = cv2.findContours(alpha_channel, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if contours:
+            # En büyük nesneyi bul (Ana ürün)
+            # key=cv2.contourArea hatası almamak için lambda kullanıyoruz
+            largest_contour = max(contours, key=cv2.contourArea)
+            max_area = cv2.contourArea(largest_contour)
+            
+            # Yeni bir temiz maske oluştur (Simsiyah)
+            clean_mask = np.zeros_like(alpha_channel)
+            
+            # Yeterince büyük olan tüm parçaları maskeye ekle
+            for cnt in contours:
+                if cv2.contourArea(cnt) > (max_area * _smart_thresh):
+                    cv2.drawContours(clean_mask, [cnt], -1, 255, thickness=cv2.FILLED)
+            
+            # Orijinal alpha ile temiz maskeyi birleştir
+            # Maskenin olmadığı yerleri sil (Alpha'yı 0 yap)
+            img_np[:, :, 3] = cv2.bitwise_and(alpha_channel, clean_mask)
+            
+            # Tekrar PIL formatına çevir
+            output_image = Image.fromarray(img_np)
+
+    # 3. Yeni beyaz bir tuval oluştur
     target_size = (width, height)
     canvas = Image.new("RGB", target_size, (255, 255, 255))
     
-    # 3. Resmi boyutlandır (Orantılı olarak sığdır)
-    # Thumbnail metodu orantıyı bozmadan sığdırır
-    # Kopyasını alıyoruz ki orijinal nesne bozulmasın (döngüsel problemlere karşı)
+    # 4. Resmi boyutlandır
     img_copy = output_image.copy()
     img_copy.thumbnail(target_size, Image.Resampling.LANCZOS)
     
-    # 4. Resmi merkeze yerleştir
-    # Resmin yeni boyutlarını al
+    # 5. Resmi merkeze yerleştir
     img_w, img_h = img_copy.size
-    
-    # Ortalamak için başlangıç koordinatlarını hesapla
     offset_x = (target_size[0] - img_w) // 2
     offset_y = (target_size[1] - img_h) // 2
     
-    # Yapıştır (Maske kullanarak şeffaflığı koru)
     canvas.paste(img_copy, (offset_x, offset_y), img_copy)
     
     return canvas
@@ -117,7 +115,7 @@ if uploaded_files:
             
             # İşle
             with st.spinner(f'{uploaded_file.name} işleniyor...'):
-                final_image = process_image(img_bytes, target_width, target_height, use_alpha_matting, alpha_matting_erode, mask_top, mask_bottom, mask_left, mask_right)
+                final_image = process_image(img_bytes, target_width, target_height, use_smart_clean, smart_clean_threshold, use_alpha_matting, alpha_matting_erode)
             
             # Sonuçları listeye ekle (Daha sonra sidebar için kullanacağız)
             processed_results.append({
