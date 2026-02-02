@@ -18,6 +18,9 @@ target_height = st.sidebar.number_input("Yükseklik (px)", min_value=100, max_va
 
 st.write(f"Resminizi yükleyin, arka planı silinsin ve **{target_width}x{target_height}** beyaz şablona oturtulsun.")
 
+
+# Önbellekleme (Cache) ile her değişiklikte tekrar işlemesini engelliyoruz
+@st.cache_data
 def process_image(image, width, height):
     # 1. Arka planı kaldır
     output_image = remove(image)
@@ -54,7 +57,7 @@ if uploaded_files:
             # Resmi oku
             input_image = Image.open(uploaded_file)
             
-            # İşle
+            # İşle (Cache sayesinde sadece boyut değişince çalışır, isim değişince çalışmaz)
             with st.spinner(f'{uploaded_file.name} işleniyor...'):
                 final_image = process_image(input_image, target_width, target_height)
             
@@ -79,6 +82,7 @@ if uploaded_files:
                 st.subheader(f"⬇️ {uploaded_file.name}")
                 
                 # Benzersiz KEY kullanarak her dosya için ayrı input oluşturuyoruz
+                st.info("İsmi değiştirdikten sonra **ENTER** tuşuna basınız.")
                 custom_name = st.text_input(
                     "Yeni Dosya Adı:", 
                     value=default_name, 
@@ -92,7 +96,7 @@ if uploaded_files:
                     save_name = custom_name
 
                 st.download_button(
-                    label=f"💾 İndir",
+                    label=f"💾 İndir ({save_name})",
                     data=byte_im,
                     file_name=save_name,
                     mime="image/jpeg",
