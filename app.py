@@ -67,6 +67,8 @@ if uploaded_file:
         with st.spinner(f'{uploaded_file.name} işleniyor...'):
             final_image = process_image(img_bytes, target_width, target_height)
         
+        st.success(f"{uploaded_file.name} hazır! İndirmek için sol menüye bakınız. 👈")
+        
         # Sadece Sonuç Resmini Göster
         st.image(final_image, caption=f'Sonuç ({target_width}x{target_height})', width=500)
         
@@ -106,7 +108,6 @@ if uploaded_file:
                 use_container_width=True
             )
             
-        st.success(f"{uploaded_file.name} hazır! İndirmek için sol menüye bakınız. 👈")
         
     except Exception as e:
         st.error(f"Hata oluştu: {e}")
