@@ -53,8 +53,6 @@ def process_image(image_bytes, width, height):
     
     return canvas
 
-# Dosya Yükleme Alanı
-uploaded_files = st.file_uploader("Resimleri Sürükleyip Bırakın", type=['png', 'jpg', 'jpeg', 'webp'], accept_multiple_files=True)
 
 
 # Dosya Yükleme Alanı
