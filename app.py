@@ -7,43 +7,29 @@ import os
 # Sayfa Ayarları
 st.set_page_config(page_title="Pro Arka Plan Silici", layout="wide")
 
-st.title("📸 Profesyonel Arka Plan Temizleyici v1.2")
+st.title("📸 Profesyonel Arka Plan Temizleyici v1.3")
 
 # --- Ayarlar Bölümü (Sidebar) ---
 st.sidebar.header("⚙️ Ayarlar")
 
-# Çıktı Modu Seçimi
-st.sidebar.subheader("🎨 Çıktı Modu")
-output_mode = st.sidebar.radio("Format Seçini:", ["Beyaz Şablon (JPG)", "Şeffaf / Orijinal (PNG)"])
+# Boyut Ayarları
+st.sidebar.subheader("📐 Boyutlandırma")
+st.sidebar.info("Varsayılan: 600x800. Beyaz şablon bu boyutlarda oluşturulur.")
+target_width = st.sidebar.number_input("Genişlik (px)", min_value=100, max_value=8000, value=600, step=50)
+target_height = st.sidebar.number_input("Yükseklik (px)", min_value=100, max_value=8000, value=800, step=50)
 
-# Boyut Ayarları (Sadece Şablon modunda aktif)
-target_width = 600
-target_height = 800
-
-if output_mode == "Beyaz Şablon (JPG)":
-    st.sidebar.subheader("📐 Boyutlandırma")
-    st.sidebar.info("Varsayılan: 600x800. Büyük değer girerseniz resim ona göre genişletilir.")
-    target_width = st.sidebar.number_input("Genişlik (px)", min_value=100, max_value=8000, value=600, step=50)
-    target_height = st.sidebar.number_input("Yükseklik (px)", min_value=100, max_value=8000, value=800, step=50)
-    st.write(f"Resminizi yükleyin, arka planı silinsin ve **{target_width}x{target_height}** beyaz şablona oturtulsun.")
-else:
-    st.sidebar.info("Resim **orijinal boyutunda** ve **arka planı şeffaf** olarak indirilecektir.")
-    st.write("Resminizi yükleyin, arka planı silinsin ve orijinal boyutunda indirilsin.")
+st.write(f"Resminizi yükleyin. Sistem size hem **{target_width}x{target_height} Beyaz Şablon** hem de **Şeffaf PNG** halini sunacaktır.")
 
 # Önbellekleme (Cache) - Parametre değiştikçe yeniden çalışır
 @st.cache_data
-def process_image(image_bytes, width, height, mode):
+def process_image(image_bytes, width, height):
     # Byte -> PIL Image
     image = Image.open(io.BytesIO(image_bytes))
     
-    # 1. Arka planı kaldır (rembg)
+    # 1. Arka planı kaldır (rembg) -> Bu bize ŞEFFAF (PNG) verir
     output_image = remove(image)
-    
-    # Eğer Şeffaf Mod seçiliyse direkt ham halini döndür
-    if mode == "Şeffaf / Orijinal (PNG)":
-        return output_image
         
-    # --- BEYAZ ŞABLON MODU ---
+    # --- BEYAZ ŞABLON OLUŞTURMA ---
     # 2. Yeni beyaz bir tuval oluştur
     target_size = (width, height)
     canvas = Image.new("RGB", target_size, (255, 255, 255))
@@ -53,7 +39,7 @@ def process_image(image_bytes, width, height, mode):
     
     # Sıfıra bölme hatası önlemi
     if img_w == 0 or img_h == 0:
-        return canvas
+        return canvas, output_image
     
     # Ölçekleme oranını hesapla (En boy oranını koru)
     scale = min(width / img_w, height / img_h)
@@ -74,7 +60,8 @@ def process_image(image_bytes, width, height, mode):
     
     canvas.paste(img_resized, (offset_x, offset_y), img_resized)
     
-    return canvas
+    # Hem Şablonu (JPG) hem Şeffafı (PNG) döndür
+    return canvas, output_image
 
 # Dosya Yükleme Alanı
 uploaded_file = st.file_uploader("Resmi Sürükleyip Bırakın", type=['png', 'jpg', 'jpeg', 'webp'], accept_multiple_files=False)
@@ -86,44 +73,28 @@ if uploaded_file:
         
         # İşle
         with st.spinner(f'{uploaded_file.name} işleniyor...'):
-            final_image = process_image(img_bytes, target_width, target_height, output_mode)
+            final_white, final_transparent = process_image(img_bytes, target_width, target_height)
         
         st.success(f"{uploaded_file.name} hazır! İndirmek için sol menüye bakınız. 👈")
         
-        # Sonuç Resim Başlığı
-        if output_mode == "Beyaz Şablon (JPG)":
-            caption_text = f'Sonuç ({target_width}x{target_height})'
-        else:
-            caption_text = f'Sonuç (Orijinal - Şeffaf)'
-
-        # Sadece Sonuç Resmini Göster
-        st.image(final_image, caption=caption_text, width=500)
+        # Resimleri Yan Yana Göster
+        col1, col2 = st.columns(2)
         
-        # İndirme Paneli (Sidebar) - Tek dosya olduğu için direkt gösteriyoruz
+        with col1:
+            st.image(final_white, caption=f'Beyaz Şablon ({target_width}x{target_height})', use_container_width=True)
+            
+        with col2:
+            st.image(final_transparent, caption='Şeffaf / Orijinal (PNG)', use_container_width=True)
+        
+        # İndirme Paneli (Sidebar)
         with st.sidebar:
             st.divider()
             st.header("💾 İndirme Paneli")
             
-            # İndirme için hazırla
-            buf = io.BytesIO()
-            
-            # Format Belirleme
-            if output_mode == "Beyaz Şablon (JPG)":
-                save_format = "JPEG"
-                mime_type = "image/jpeg"
-                ext = ".jpg"
-            else:
-                save_format = "PNG"
-                mime_type = "image/png"
-                ext = ".png"
-
-            final_image.save(buf, format=save_format, quality=95)
-            byte_im = buf.getvalue()
+            st.info("İsmi değiştirdikten sonra **ENTER** tuşuna basınız.")
             
             # Varsayılan dosya adı
-            default_name = os.path.splitext(uploaded_file.name)[0] + "_temiz"
-            
-            st.info("İsmi değiştirdikten sonra **ENTER** tuşuna basınız.")
+            default_name = os.path.splitext(uploaded_file.name)[0]
             
             # İsim Değiştirme
             custom_name = st.text_input(
@@ -131,20 +102,38 @@ if uploaded_file:
                 value=default_name
             )
             
-            # Uzantı temizliği (kullanıcı yanlışlıkla extension yazdıysa)
-            base_name = os.path.splitext(custom_name)[0]
-            save_name = base_name + ext
+            # Uzantısız halini al (temiz isim)
+            base_filename = os.path.splitext(custom_name)[0]
             
-            # İndirme Butonu
+            st.divider()
+            
+            # --- BUTON 1: BEYAZ ŞABLON İNDİR ---
+            buf_jpg = io.BytesIO()
+            final_white.save(buf_jpg, format="JPEG", quality=95)
+            byte_jpg = buf_jpg.getvalue()
+            name_jpg = base_filename + "_sablon.jpg"
+            
             st.download_button(
-                label=f"💾 İndir ({save_name})",
-                data=byte_im,
-                file_name=save_name,
-                mime=mime_type,
+                label=f"💾 İndir: Beyaz Şablon (JPG)",
+                data=byte_jpg,
+                file_name=name_jpg,
+                mime="image/jpeg",
                 use_container_width=True
             )
             
+            # --- BUTON 2: ŞEFFAF PNG İNDİR ---
+            buf_png = io.BytesIO()
+            final_transparent.save(buf_png, format="PNG")
+            byte_png = buf_png.getvalue()
+            name_png = base_filename + "_seffaf.png"
+            
+            st.download_button(
+                label=f"💾 İndir: Şeffaf (PNG)",
+                data=byte_png,
+                file_name=name_png,
+                mime="image/png",
+                use_container_width=True
+            )
         
     except Exception as e:
         st.error(f"Hata oluştu: {e}")
-
