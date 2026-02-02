@@ -68,7 +68,7 @@ if uploaded_file:
             final_image = process_image(img_bytes, target_width, target_height)
         
         # Sadece Sonuç Resmini Göster
-        st.image(final_image, caption=f'Sonuç ({target_width}x{target_height})', use_container_width=True)
+        st.image(final_image, caption=f'Sonuç ({target_width}x{target_height})', width=500)
         
         # İndirme Paneli (Sidebar) - Tek dosya olduğu için direkt gösteriyoruz
         with st.sidebar:
