@@ -5,30 +5,40 @@ import io
 import os
 
 # Sayfa Ayarları
-st.set_page_config(page_title="Pro Arka Plan Silici", layout="centered")
+st.set_page_config(page_title="Pro Arka Plan Silici", layout="wide")
 
 st.title("📸 Profesyonel Arka Plan Temizleyici")
 
 # --- Ayarlar Bölümü (Sidebar) ---
 st.sidebar.header("⚙️ Ayarlar")
-st.sidebar.write("Çıktı görüntüsünün boyutlarını buradan ayarlayabilirsiniz.")
 
+# Boyut Ayarları
+st.sidebar.subheader("📐 Boyutlandırma")
 target_width = st.sidebar.number_input("Genişlik (px)", min_value=100, max_value=4000, value=600, step=50)
 target_height = st.sidebar.number_input("Yükseklik (px)", min_value=100, max_value=4000, value=800, step=50)
 
+st.sidebar.divider()
+
+# Gelişmiş Ayarlar
+st.sidebar.subheader("🧪 Gelişmiş Temizlik")
+use_alpha_matting = st.sidebar.checkbox("Detaylı Temizlik (Alpha Matting)", value=False, help="Kenarları daha hassas temizler ama işlem süresi uzayabilir.")
+alpha_matting_erode = 10
+if use_alpha_matting:
+    alpha_matting_erode = st.sidebar.slider("Kenar Aşındırma (Erode Size)", 0, 40, 10, help="Kenarlardan ne kadar içeri gireceğini belirler. Artırırsanız kenardaki artıklar daha çok silinir.")
+
 st.write(f"Resminizi yükleyin, arka planı silinsin ve **{target_width}x{target_height}** beyaz şablona oturtulsun.")
-
-
-# Önbellekleme (Cache) ile her değişiklikte tekrar işlemesini engelliyoruz
 
 # Önbellekleme (Cache) ile her değişiklikte tekrar işlemesini engelliyoruz
 @st.cache_data
-def process_image(image_bytes, width, height):
+def process_image(image_bytes, width, height, use_alpha, erode_size):
     # Byte verisini görsele çevir
     image = Image.open(io.BytesIO(image_bytes))
     
     # 1. Arka planı kaldır
-    output_image = remove(image)
+    if use_alpha:
+        output_image = remove(image, alpha_matting=True, alpha_matting_erode_size=erode_size)
+    else:
+        output_image = remove(image)
     
     # 2. Yeni beyaz bir tuval oluştur (Kullanıcının seçtiği boyutlarda)
     target_size = (width, height)
@@ -73,7 +83,7 @@ if uploaded_files:
             
             # İşle
             with st.spinner(f'{uploaded_file.name} işleniyor...'):
-                final_image = process_image(img_bytes, target_width, target_height)
+                final_image = process_image(img_bytes, target_width, target_height, use_alpha_matting, alpha_matting_erode)
             
             # Sonuçları listeye ekle (Daha sonra sidebar için kullanacağız)
             processed_results.append({
