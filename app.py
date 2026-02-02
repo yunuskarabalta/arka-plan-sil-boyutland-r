@@ -73,28 +73,34 @@ if uploaded_files:
             # Varsayılan dosya adı (Uzantısız)
             default_name = os.path.splitext(uploaded_file.name)[0] + "_temiz"
             
-            # Benzersiz KEY kullanarak her dosya için ayrı input oluşturuyoruz
-            custom_name = st.text_input(
-                "Dosya Adını Değiştir 👇", 
-                value=default_name, 
-                key=f"filename_{i}_{uploaded_file.name}"
-            )
-            
-            # Kullanıcı uzantı yazdıysa onu koru, yazmadıysa .jpg ekle
-            if not custom_name.lower().endswith(('.jpg', '.jpeg', '.png')):
-                save_name = custom_name + ".jpg"
-            else:
-                save_name = custom_name
+            # Sidebar'a taşıma işlemi
+            with st.sidebar:
+                st.divider()
+                st.subheader(f"⬇️ {uploaded_file.name}")
+                
+                # Benzersiz KEY kullanarak her dosya için ayrı input oluşturuyoruz
+                custom_name = st.text_input(
+                    "Yeni Dosya Adı:", 
+                    value=default_name, 
+                    key=f"filename_{i}_{uploaded_file.name}"
+                )
+                
+                # Kullanıcı uzantı yazdıysa onu koru, yazmadıysa .jpg ekle
+                if not custom_name.lower().endswith(('.jpg', '.jpeg', '.png')):
+                    save_name = custom_name + ".jpg"
+                else:
+                    save_name = custom_name
 
-            st.download_button(
-                label=f"⬇️ İndir: {save_name}",
-                data=byte_im,
-                file_name=save_name,
-                mime="image/jpeg",
-                key=f"download_{i}_{uploaded_file.name}"
-            )
+                st.download_button(
+                    label=f"💾 İndir",
+                    data=byte_im,
+                    file_name=save_name,
+                    mime="image/jpeg",
+                    key=f"download_{i}_{uploaded_file.name}",
+                    use_container_width=True
+                )
             
-            st.success(f"{uploaded_file.name} başarıyla hazırlandı!")
+            st.success(f"{uploaded_file.name} hazır! İndirmek için sol menüye bakınız. 👈")
             st.divider()
             
         except Exception as e:
