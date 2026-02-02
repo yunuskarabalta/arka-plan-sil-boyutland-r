@@ -78,14 +78,14 @@ if uploaded_file:
         
         st.success(f"{uploaded_file.name} hazır! İndirmek için sol menüye bakınız. 👈")
         
-        # Resimleri Yan Yana Göster
-        col1, col2 = st.columns(2)
+        # Resimleri Yan Yana Göster (KALDIRILDI - ALT ALTA GÖSTERİLİYOR GARANTİ İÇİN)
+        st.divider()
+        st.subheader("1. Beyaz Şablonlu Halı (JPG)")
+        st.image(final_white, caption=f'Beyaz Şablon ({target_width}x{target_height})', width=500)
         
-        with col1:
-            st.image(final_white, caption=f'Beyaz Şablon ({target_width}x{target_height})', use_container_width=True)
-            
-        with col2:
-            st.image(final_transparent, caption='Şeffaf / Orijinal (PNG)', use_container_width=True)
+        st.divider()
+        st.subheader("2. Arka Planı Silinmiş Şeffaf Halı (PNG)")
+        st.image(final_transparent, caption='Şeffaf / Orijinal (PNG)', width=500)
         
         # İndirme Paneli (Sidebar)
         with st.sidebar:
