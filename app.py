@@ -34,18 +34,24 @@ def process_image(image_bytes, width, height):
     canvas = Image.new("RGB", target_size, (255, 255, 255))
     
     # 3. Resmi boyutlandır (Hem küçültme hem BÜYÜTME yapar)
-    # Thumbnail metodu resmi büyütmez, o yüzden resize kullanacağız.
     img_w, img_h = output_image.size
     
+    # Sıfıra bölme hatası önlemi
+    if img_w == 0 or img_h == 0:
+        return canvas
+    
     # Ölçekleme oranını hesapla (En boy oranını koru)
-    # Hedef kutunun içine sığacak en büyük boyutu bul
     scale = min(width / img_w, height / img_h)
     
-    new_w = int(img_w * scale)
-    new_h = int(img_h * scale)
+    # En az 1 piksel olacak şekilde ayarla
+    new_w = max(1, int(img_w * scale))
+    new_h = max(1, int(img_h * scale))
     
     # Resmi yeniden boyutlandır (LANCZOS filtresi ile kaliteli)
-    img_resized = output_image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    if new_w > 0 and new_h > 0:
+        img_resized = output_image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    else:
+        img_resized = output_image
     
     # 4. Resmi merkeze yerleştir
     offset_x = (width - new_w) // 2
