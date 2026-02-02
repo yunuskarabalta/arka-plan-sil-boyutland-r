@@ -20,8 +20,13 @@ st.write(f"Resminizi yükleyin, arka planı silinsin ve **{target_width}x{target
 
 
 # Önbellekleme (Cache) ile her değişiklikte tekrar işlemesini engelliyoruz
+
+# Önbellekleme (Cache) ile her değişiklikte tekrar işlemesini engelliyoruz
 @st.cache_data
-def process_image(image, width, height):
+def process_image(image_bytes, width, height):
+    # Byte verisini görsele çevir
+    image = Image.open(io.BytesIO(image_bytes))
+    
     # 1. Arka planı kaldır
     output_image = remove(image)
     
@@ -54,12 +59,15 @@ uploaded_files = st.file_uploader("Resimleri Sürükleyip Bırakın", type=['png
 if uploaded_files:
     for i, uploaded_file in enumerate(uploaded_files):
         try:
-            # Resmi oku
-            input_image = Image.open(uploaded_file)
+            # Dosyayı byte olarak oku (Cache için bu gerekli)
+            img_bytes = uploaded_file.getvalue()
+            
+            # Görüntüleme için görseli aç
+            input_image = Image.open(io.BytesIO(img_bytes))
             
             # İşle (Cache sayesinde sadece boyut değişince çalışır, isim değişince çalışmaz)
             with st.spinner(f'{uploaded_file.name} işleniyor...'):
-                final_image = process_image(input_image, target_width, target_height)
+                final_image = process_image(img_bytes, target_width, target_height)
             
             # Yan yana göster
             col1, col2 = st.columns(2)
