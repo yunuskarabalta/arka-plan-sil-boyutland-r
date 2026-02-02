@@ -7,10 +7,15 @@ import os
 # Sayfa Ayarları
 st.set_page_config(page_title="Pro Arka Plan Silici", layout="wide")
 
-st.title("📸 Profesyonel Arka Plan Temizleyici v1.6 (FINAL)")
+st.title("📸 Profesyonel Arka Plan Temizleyici v1.7 (GÜNCEL)")
 
 # --- Ayarlar Bölümü (Sidebar) ---
 st.sidebar.header("⚙️ Ayarlar")
+
+# Önbellek Temizleme Butonu (Sorun Giderme İçin)
+if st.sidebar.button("⚠️ Önbelleği Temizle (Reset)"):
+    st.cache_data.clear()
+    st.experimental_rerun()
 
 # Boyut Ayarları
 st.sidebar.subheader("📐 Boyutlandırma")
@@ -18,7 +23,9 @@ st.sidebar.info("Varsayılan: 600x800. Beyaz şablon bu boyutlarda oluşturulur.
 target_width = st.sidebar.number_input("Genişlik (px)", min_value=100, max_value=8000, value=600, step=50)
 target_height = st.sidebar.number_input("Yükseklik (px)", min_value=100, max_value=8000, value=800, step=50)
 
-st.write(f"Resminizi yükleyin. Sistem size hem **{target_width}x{target_height} Beyaz Şablon** hem de **Şeffaf PNG** halini sunacaktır.")
+# Sürüm Kontrolü ve Bilgilendirme
+st.warning("⚠️ Eğer bu yazıyı görüyorsanız SÜRÜM v1.7 (Çift Çıktı Modu) AKTİFTİR.")
+st.write(f"Resminizi yükleyin. Sistem size hem **Beyaz Şablon** hem de **Şeffaf PNG** halini sunacaktır.")
 
 # Önbellekleme (Cache)
 # FONKSİYON İSMİ KASTEN DEĞİŞTİRİLDİ (CACHE INVALIDATION İÇİN)
