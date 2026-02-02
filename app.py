@@ -22,7 +22,7 @@ st.write(f"Resminizi yükleyin. Sistem size hem **{target_width}x{target_height}
 
 # Önbellekleme (Cache) - Parametre değiştikçe yeniden çalışır
 @st.cache_data
-def process_image(image_bytes, width, height):
+def process_image_v2(image_bytes, width, height):
     # Byte -> PIL Image
     image = Image.open(io.BytesIO(image_bytes))
     
@@ -73,7 +73,7 @@ if uploaded_file:
         
         # İşle
         with st.spinner(f'{uploaded_file.name} işleniyor...'):
-            final_white, final_transparent = process_image(img_bytes, target_width, target_height)
+            final_white, final_transparent = process_image_v2(img_bytes, target_width, target_height)
         
         st.success(f"{uploaded_file.name} hazır! İndirmek için sol menüye bakınız. 👈")
         
