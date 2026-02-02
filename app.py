@@ -7,8 +7,8 @@ import os
 # Sayfa Ayarları
 st.set_page_config(page_title="Pro Arka Plan Silici", layout="wide")
 
-st.title("📸 Profesyonel Arka Plan Temizleyici v2.0 (DUAL MOD)")
-st.error("🚨 SÜRÜM v2.0 AKTİF - HEM ŞABLON HEM ŞEFFAF AYNI ANDA 🚨")
+st.title("📸 Profesyonel Arka Plan Temizleyici v2.1")
+st.error("🚨 SÜRÜM v2.1 - EĞER BUNU GÖRMÜYORSANIZ HALA ESKİ KOD ÇALIŞIYORDUR 🚨")
 
 # --- Ayarlar Bölümü (Sidebar) ---
 st.sidebar.header("⚙️ Ayarlar")
