@@ -3,8 +3,6 @@ from rembg import remove
 from PIL import Image
 import io
 import os
-import cv2
-import numpy as np
 
 # Sayfa Ayarları
 st.set_page_config(page_title="Pro Arka Plan Silici", layout="wide")
@@ -16,79 +14,32 @@ st.sidebar.header("⚙️ Ayarlar")
 
 # Boyut Ayarları
 st.sidebar.subheader("📐 Boyutlandırma")
-target_width = st.sidebar.number_input("Genişlik (px)", min_value=100, max_value=4000, value=600, step=50)
-target_height = st.sidebar.number_input("Yükseklik (px)", min_value=100, max_value=4000, value=800, step=50)
-
-st.sidebar.divider()
-
-# Gelişmiş Ayarlar
-st.sidebar.subheader("🧠 Akıllı Temizlik")
-use_smart_clean = st.sidebar.checkbox("Otomatik Parçacık Temizleyici", value=True, help="Ana nesne dışındaki küçük logoları ve lekeleri otomatik siler.")
-smart_clean_threshold = 0.05 # %5'ten küçük parçaları sil
-
-st.sidebar.divider()
-
-st.sidebar.subheader("🧪 Detay Ayarları")
-use_alpha_matting = st.sidebar.checkbox("Hassas Kenar (Alpha Matting)", value=False, help="Kenarları daha yumuşak siler.")
-alpha_matting_erode = 10
-if use_alpha_matting:
-    alpha_matting_erode = st.sidebar.slider("Kenar Aşındırma", 0, 40, 10)
+st.sidebar.info("Varsayılan olarak 4K (3840px) kalitesinde ayarlanmıştır.")
+target_width = st.sidebar.number_input("Genişlik (px)", min_value=100, max_value=8000, value=3840, step=100)
+target_height = st.sidebar.number_input("Yükseklik (px)", min_value=100, max_value=8000, value=3840, step=100)
 
 st.write(f"Resminizi yükleyin, arka planı silinsin ve **{target_width}x{target_height}** beyaz şablona oturtulsun.")
 
 # Önbellekleme (Cache) - Parametre değiştikçe yeniden çalışır
 @st.cache_data
-def process_image(image_bytes, width, height, _use_smart, _smart_thresh, _use_alpha, _erode_size):
+def process_image(image_bytes, width, height):
     # Byte -> PIL Image
     image = Image.open(io.BytesIO(image_bytes))
     
     # 1. Arka planı kaldır (rembg)
-    if _use_alpha:
-        output_image = remove(image, alpha_matting=True, alpha_matting_erode_size=_erode_size)
-    else:
-        output_image = remove(image)
+    output_image = remove(image)
         
-    # 2. Akıllı Temizlik (OpenCV ile küçük parçaları silme)
-    if _use_smart:
-        # PIL -> Numpy (RGBA)
-        img_np = np.array(output_image)
-        
-        # Sadece Alpha kanalını al (Şeffaflık maskesi)
-        alpha_channel = img_np[:, :, 3]
-        
-        # Konturları bul (Dış hatlar)
-        contours, _ = cv2.findContours(alpha_channel, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        if contours:
-            # En büyük nesneyi bul (Ana ürün)
-            # key=cv2.contourArea hatası almamak için lambda kullanıyoruz
-            largest_contour = max(contours, key=cv2.contourArea)
-            max_area = cv2.contourArea(largest_contour)
-            
-            # Yeni bir temiz maske oluştur (Simsiyah)
-            clean_mask = np.zeros_like(alpha_channel)
-            
-            # Yeterince büyük olan tüm parçaları maskeye ekle
-            for cnt in contours:
-                if cv2.contourArea(cnt) > (max_area * _smart_thresh):
-                    cv2.drawContours(clean_mask, [cnt], -1, 255, thickness=cv2.FILLED)
-            
-            # Orijinal alpha ile temiz maskeyi birleştir
-            # Maskenin olmadığı yerleri sil (Alpha'yı 0 yap)
-            img_np[:, :, 3] = cv2.bitwise_and(alpha_channel, clean_mask)
-            
-            # Tekrar PIL formatına çevir
-            output_image = Image.fromarray(img_np)
-
-    # 3. Yeni beyaz bir tuval oluştur
+    # 2. Yeni beyaz bir tuval oluştur
     target_size = (width, height)
     canvas = Image.new("RGB", target_size, (255, 255, 255))
     
-    # 4. Resmi boyutlandır
+    # 3. Resmi boyutlandır
+    # Eğer orijinal resim hedeften küçükse ve kalite artsın isteniyorsa
+    # LANCZOS algoritması ile en iyi kalitede büyütmeye çalışırız
     img_copy = output_image.copy()
     img_copy.thumbnail(target_size, Image.Resampling.LANCZOS)
     
-    # 5. Resmi merkeze yerleştir
+    # 4. Resmi merkeze yerleştir
     img_w, img_h = img_copy.size
     offset_x = (target_size[0] - img_w) // 2
     offset_y = (target_size[1] - img_h) // 2
@@ -115,7 +66,7 @@ if uploaded_files:
             
             # İşle
             with st.spinner(f'{uploaded_file.name} işleniyor...'):
-                final_image = process_image(img_bytes, target_width, target_height, use_smart_clean, smart_clean_threshold, use_alpha_matting, alpha_matting_erode)
+                final_image = process_image(img_bytes, target_width, target_height)
             
             # Sonuçları listeye ekle (Daha sonra sidebar için kullanacağız)
             processed_results.append({
