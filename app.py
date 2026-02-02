@@ -7,7 +7,8 @@ import os
 # Sayfa Ayarları
 st.set_page_config(page_title="Pro Arka Plan Silici", layout="wide")
 
-st.title("📸 Profesyonel Arka Plan Temizleyici v1.7 (GÜNCEL)")
+st.title("📸 Profesyonel Arka Plan Temizleyici v1.8 (SAAT 17:45 GÜNCELLEMESİ)")
+st.error("🚨 BU YAZIYI GÖRÜYORSANIZ KOD GİT'E GİTMİŞ VE GÜNCELLENMİŞTİR 🚨")
 
 # --- Ayarlar Bölümü (Sidebar) ---
 st.sidebar.header("⚙️ Ayarlar")
