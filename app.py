@@ -14,9 +14,9 @@ st.sidebar.header("⚙️ Ayarlar")
 
 # Boyut Ayarları
 st.sidebar.subheader("📐 Boyutlandırma")
-st.sidebar.info("Varsayılan olarak 4K (3840px) kalitesinde ayarlanmıştır.")
-target_width = st.sidebar.number_input("Genişlik (px)", min_value=100, max_value=8000, value=3840, step=100)
-target_height = st.sidebar.number_input("Yükseklik (px)", min_value=100, max_value=8000, value=3840, step=100)
+st.sidebar.info("Varsayılan: 600x800. Büyük değer girerseniz resim ona göre genişletilir.")
+target_width = st.sidebar.number_input("Genişlik (px)", min_value=100, max_value=8000, value=600, step=50)
+target_height = st.sidebar.number_input("Yükseklik (px)", min_value=100, max_value=8000, value=800, step=50)
 
 st.write(f"Resminizi yükleyin, arka planı silinsin ve **{target_width}x{target_height}** beyaz şablona oturtulsun.")
 
@@ -33,18 +33,25 @@ def process_image(image_bytes, width, height):
     target_size = (width, height)
     canvas = Image.new("RGB", target_size, (255, 255, 255))
     
-    # 3. Resmi boyutlandır
-    # Eğer orijinal resim hedeften küçükse ve kalite artsın isteniyorsa
-    # LANCZOS algoritması ile en iyi kalitede büyütmeye çalışırız
-    img_copy = output_image.copy()
-    img_copy.thumbnail(target_size, Image.Resampling.LANCZOS)
+    # 3. Resmi boyutlandır (Hem küçültme hem BÜYÜTME yapar)
+    # Thumbnail metodu resmi büyütmez, o yüzden resize kullanacağız.
+    img_w, img_h = output_image.size
+    
+    # Ölçekleme oranını hesapla (En boy oranını koru)
+    # Hedef kutunun içine sığacak en büyük boyutu bul
+    scale = min(width / img_w, height / img_h)
+    
+    new_w = int(img_w * scale)
+    new_h = int(img_h * scale)
+    
+    # Resmi yeniden boyutlandır (LANCZOS filtresi ile kaliteli)
+    img_resized = output_image.resize((new_w, new_h), Image.Resampling.LANCZOS)
     
     # 4. Resmi merkeze yerleştir
-    img_w, img_h = img_copy.size
-    offset_x = (target_size[0] - img_w) // 2
-    offset_y = (target_size[1] - img_h) // 2
+    offset_x = (width - new_w) // 2
+    offset_y = (height - new_h) // 2
     
-    canvas.paste(img_copy, (offset_x, offset_y), img_copy)
+    canvas.paste(img_resized, (offset_x, offset_y), img_resized)
     
     return canvas
 
